@@ -11,7 +11,7 @@ filter_ui <- function(id) {
   )
 }
 
-filter_mod <- function(input, output, session, data_in) {
+filter_mod <- function(input, output, session, data_in, data_symbol) {
   ns <- session$ns
   
   setBookmarkExclude(c("show_filter_dialog_btn", "add_filter_btn"))
@@ -59,6 +59,8 @@ filter_mod <- function(input, output, session, data_in) {
       id = ns(id),
       fieldname = fieldname)
     
+    freezeReactiveValue(input, id)
+    
     insertUI(
       paste0("#", ns("filter_container")),
       "beforeEnd",
@@ -73,13 +75,29 @@ filter_mod <- function(input, output, session, data_in) {
   reactive({
     df <- data_in()
     idx <- rep_len(TRUE, nrow(df))
-    for (name in names(filter_fields)) {
-      filter <- filter_fields[[name]]
-      x <- df[[name]]
-      param <- input[[ filter[["inputId"]] ]]
-      idx <- idx & eval(filter[["filterExpr"]], list(x = x, param = param))
+    
+    if (length(filter_fields) == 0) {
+      return(NULL)
     }
-    idx
+    
+    # Gather up all filter expressions
+    exprs <- lapply(names(filter_fields), function(name) {
+      filter <- filter_fields[[name]]
+      x <- as.symbol(name) #df[[name]]
+      param <- input[[ filter[["inputId"]] ]]
+      #idx <- idx & eval(filter[["filterExpr"]], list(x = x, param = param))
+      condExpr <- filter[["filterExpr"]](x = x, param = param)
+    })
+    
+    # Filter out all NULL expressions
+    exprs <- Filter(Negate(is.null), exprs)
+    
+    # Wrap each expression with `filter(...)`
+    exprs <- lapply(exprs, function(x) {
+      expr(filter(!!x))
+    })
+    
+    exprs
   })
 }
 
@@ -90,7 +108,13 @@ createFilter <- function(data, id, fieldname) {
 createFilter.character <- function(data, id, fieldname) {
   list(
     ui = textInput(id, fieldname, ""),
-    filterExpr = expr(if (!nzchar(param)) rep_len(TRUE, length(x)) else grepl(param, x, ignore.case = TRUE, fixed = TRUE))
+    filterExpr = function(x, param) {
+      if (!nzchar(param)) {
+        NULL
+      } else {
+        expr(grepl(!!param, !!x, ignore.case = TRUE, fixed = TRUE))
+      }
+    }
   )
 }
 
@@ -98,7 +122,9 @@ createFilter.numeric <- function(data, id, fieldname) {
   list(
     ui = sliderInput(id, fieldname, min = min(data), max = max(data),
       value = range(data)),
-    filterExpr = expr(x >= param[1] & x <= param[2])
+    filterExpr = function(x, param) {
+      expr(!!x >= !!param[1] & !!x <= !!param[2])
+    }
   )
 }
 
@@ -107,6 +133,13 @@ createFilter.integer <- createFilter.numeric
 createFilter.factor <- function(data, id, fieldname) {
   list(
     ui = selectInput(id, fieldname, levels(data), character(0), multiple = TRUE),
-    filterExpr = expr(x %in% param)
+    filterExpr = function(x, param) {
+      if (length(param) == 0)
+        NULL
+      else
+        expr(!!x %in% !!param)
+    }
   )
 }
+
+createFilter.POSIXt <- createFilter.numeric

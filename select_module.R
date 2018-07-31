@@ -1,5 +1,6 @@
 library(shiny)
 library(dplyr)
+library(rlang)
 
 select_vars_ui <- function(id) {
   ns <- NS(id)
@@ -13,11 +14,12 @@ select_vars <- function(input, output, session, data_in) {
   force(data_in)
   
   output$vars_ui <- renderUI({
+    freezeReactiveValue(input, "vars")
     #varSelectInput(ns("vars"), "Variables", data_in(), multiple = TRUE)
     checkboxGroupInput(ns("vars"), "Variables", names(data_in()), selected = names(data_in()))
   })
   
   reactive({
-    input$vars
+    expr(select(!!!syms(input$vars)))
   })
 }
