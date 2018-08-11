@@ -9,17 +9,20 @@ select_vars_ui <- function(id) {
   )
 }
 
-select_vars <- function(input, output, session, data_in) {
+select_vars <- function(input, output, session, vars, data_expr) {
   ns <- session$ns
-  force(data_in)
-  
+
   output$vars_ui <- renderUI({
     freezeReactiveValue(input, "vars")
-    #varSelectInput(ns("vars"), "Variables", data_in(), multiple = TRUE)
-    checkboxGroupInput(ns("vars"), "Variables", names(data_in()), selected = names(data_in()))
+    selectInput(ns("vars"), "Variables to display", vars(), multiple = TRUE)
+    #checkboxGroupInput(ns("vars"), "Variables", names(data), selected = names(data))
   })
   
   reactive({
-    expr(select(!!!syms(input$vars)))
+    if (length(input$vars) == 0) {
+      data_expr()
+    } else {
+      expr(!!data_expr() %>% select(!!!syms(input$vars)))
+    }
   })
 }

@@ -1,0 +1,15 @@
+---
+{{frontmatter}}
+---
+
+# {{title}}
+
+{{description}}
+
+```{r setup}
+{{setup}}
+```
+
+```{r}
+{{code}}
+```

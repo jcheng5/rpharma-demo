@@ -11,7 +11,7 @@ filter_ui <- function(id) {
   )
 }
 
-filter_mod <- function(input, output, session, data_in, data_symbol) {
+filter_mod <- function(input, output, session, data_expr) {
   ns <- session$ns
   
   setBookmarkExclude(c("show_filter_dialog_btn", "add_filter_btn"))
@@ -31,7 +31,7 @@ filter_mod <- function(input, output, session, data_in, data_symbol) {
   })
   
   observeEvent(input$show_filter_dialog_btn, {
-    available_fields <- names(data_in()) %>% base::setdiff(names(filter_fields))
+    available_fields <- names(eval_clean(data_expr())) %>% base::setdiff(names(filter_fields))
 
     showModal(modalDialog(
       title = "Add filter",
@@ -55,7 +55,7 @@ filter_mod <- function(input, output, session, data_in, data_symbol) {
     id <- paste0("filter__", fieldname)
     
     filter <- createFilter(
-      data = data_in()[[fieldname]],
+      data = eval_clean(data_expr())[[fieldname]],
       id = ns(id),
       fieldname = fieldname)
     
@@ -73,11 +73,10 @@ filter_mod <- function(input, output, session, data_in, data_symbol) {
   }
   
   reactive({
-    df <- data_in()
-    idx <- rep_len(TRUE, nrow(df))
+    result_expr <- data_expr()
     
     if (length(filter_fields) == 0) {
-      return(NULL)
+      return(result_expr)
     }
     
     # Gather up all filter expressions
@@ -85,19 +84,14 @@ filter_mod <- function(input, output, session, data_in, data_symbol) {
       filter <- filter_fields[[name]]
       x <- as.symbol(name) #df[[name]]
       param <- input[[ filter[["inputId"]] ]]
-      #idx <- idx & eval(filter[["filterExpr"]], list(x = x, param = param))
-      condExpr <- filter[["filterExpr"]](x = x, param = param)
+      cond_expr <- filter[["filterExpr"]](x = x, param = param)
+      if (!is.null(cond_expr)) {
+        result_expr <<- expr(!!result_expr %>% filter(!!cond_expr))
+      }
+      invisible()
     })
-    
-    # Filter out all NULL expressions
-    exprs <- Filter(Negate(is.null), exprs)
-    
-    # Wrap each expression with `filter(...)`
-    exprs <- lapply(exprs, function(x) {
-      expr(filter(!!x))
-    })
-    
-    exprs
+
+    result_expr    
   })
 }
 
