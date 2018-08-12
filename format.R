@@ -1,5 +1,6 @@
 library(sourcetools)
 library(dplyr)
+library(styler)
 
 str <- "mtcars %>% mutate(cyl = factor(cyl)) %>% filter(mpg >= 19.8 & \n    mpg <= 31.4) %>% filter(cyl %in% c(\"4\", \"6\")) %>% select(mpg, \n    cyl, disp) %>% {\nfoo\nbar\n}\nfoo()\nbar()"
 
@@ -91,6 +92,7 @@ reindent <- function(str) {
 }
 
 format_tidy_code <- function(code_str) {
-  #styler::style_text(strsplit(code_str, "\n")[[1]])
-  code_str %>% rebreak() %>% reindent()
+  code_str %>% rebreak() %>% style_text() %>% paste(collapse = "\n")
+  #paste(collapse = "\n", styler::style_text(rebreak(code_str)))
+  #code_str %>% rebreak() %>% reindent()
 }

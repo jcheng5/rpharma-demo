@@ -135,7 +135,7 @@ bookmark_mod <- function(input, output, session, instance, thumbnailFunc) {
       updateQueryString(url)
       
       thumbnail <- if (!is.null(thumbnailFunc)) {
-        pngfile <- shiny::plotPNG(function() {
+        pngfile <- plotPNG(function() {
           try(thumbnailFunc(), silent = TRUE)
         }, height = 300)
         on.exit(unlink(pngfile), add = TRUE)
