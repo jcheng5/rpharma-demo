@@ -11,40 +11,47 @@ source("summarize_module.R", local = environment())
 bmi <- bookmark_init("bookmarks.sqlite")
 
 ui <- function(req) {
-  navbarPage(
-    "Demo",
-    tabPanel("Foo",
-      fluidRow(
-        column(9,
-          plotOutput("plot"),
-          tableOutput("table")
+  tagList(
+    # Bootstrap header
+    tags$header(class = "navbar navbar-default navbar-static-top",
+      tags$div(class = "container-fluid",
+        tags$div(class = "navbar-header",
+          tags$div(class = "navbar-brand", "R/Pharma demo")
         ),
-        column(3,
+        # Links for restoring/loading sessions
+        tags$ul(class = "nav navbar-nav navbar-right",
+          tags$li(
+            bookmark_modal_load_ui("bookmark")
+          ),
+          tags$li(
+            bookmark_modal_save_ui("bookmark")
+          )
+        )
+      )
+    ),
+    fluidPage(theme = shinythemes::shinytheme("united"),
+      sidebarLayout(position = "right",
+        column(width = 4,
           wellPanel(
             select_vars_ui("select")
           ),
           wellPanel(
             filter_ui("filter")
           ),
-          wellPanel(
-            downloadButton("download", "Download report")
-          )
-        )
-      )
-    ),
-    tabPanel("Bar",
-      numericInput("x2", "x2", 2),
-      textOutput("out2")
-    ),
-    tabPanel("Save/Load",
-      fluidRow(
-        column(8,
-          h3("Load"),
-          bookmark_load_ui("bookmark")
+          downloadButton("download", "Download report", class = "btn-primary")
         ),
-        column(4,
-          h3("Save"),
-          bookmark_save_ui("bookmark")
+        mainPanel(
+          tabsetPanel(id = "tabs",
+            tabPanel("Plot", tags$br(),
+              plotOutput("plot", height = 600)
+            ),
+            tabPanel("Summary", tags$br(),
+              verbatimTextOutput("summary")
+            ),
+            tabPanel("Table", tags$br(),
+              tableOutput("table")
+            )
+          )
         )
       )
     )
@@ -52,6 +59,10 @@ ui <- function(req) {
 }
 
 server <- function(input, output, session) {
+  callModule(bookmark_mod, "bookmark", bmi,
+    thumbnailFunc = function() { do_plot() }
+  )()
+  
   datasetExpr <- reactive(expr(mtcars %>% mutate(cyl = factor(cyl))))
   filterExpr <- callModule(filter_mod, "filter", datasetExpr)
   selectExpr <- callModule(select_vars, "select",
@@ -59,20 +70,25 @@ server <- function(input, output, session) {
   
   data <- reactive({
     resultExpr <- selectExpr()
-    print(resultExpr)
-    eval_clean(resultExpr)
+    df <- eval_clean(resultExpr)
+    validate(need(nrow(df) > 0, "No data matches the filter"))
+    df
   })
 
   output$table <- renderTable({
     data()
   }, rownames = TRUE)
   
-  output$plot <- renderPlot({
+  do_plot <- function() {
     plot(data())
+  }
+  
+  output$plot <- renderPlot({
+    do_plot()
   })
   
-  output$out2 <- renderText({
-    input$x2
+  output$summary <- renderPrint({
+    summary(data())
   })
   
   output$download <- downloadHandler(
@@ -85,6 +101,7 @@ server <- function(input, output, session) {
           body_expr = expr({
             df <- !!selectExpr()
             plot(df)
+            summary(df)
             knitr::kable(df)
           }),
           packages = c("dplyr"),
@@ -94,8 +111,6 @@ server <- function(input, output, session) {
       )
     }
   )
-  
-  callModule(bookmark_mod, "bookmark", bmi)()
 }
 
 enableBookmarking("server")

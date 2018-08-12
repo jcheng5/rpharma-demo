@@ -4,20 +4,28 @@ library(RSQLite)
 library(pool)
 library(dplyr)
 library(lubridate)
+library(shinyIncubator) # devtools::install_github("rstudio/shiny-incubator")
 
-bookmark_save_ui <- function(id) {
+bookmark_modal_save_ui <- function(id) {
+  ns <- NS(id)
+
+  tagList(
+    actionLink(ns("show_save_modal"), "Save session")
+  )
+}
+
+bookmark_modal_load_ui <- function(id) {
   ns <- NS(id)
   
   tagList(
-    textInput(ns("save_name"), "Session name"),
-    actionButton(ns("save"), "Save")
+    actionLink(ns("show_load_modal"), "Restore session")
   )
 }
 
 bookmark_load_ui <- function(id) {
   ns <- NS(id)
   
-  DTOutput(ns("saved_sessions"))
+  uiOutput(ns("saved_sessions"))
 }
 
 bookmark_init <- function(filepath = "bookmarks.sqlite") {
@@ -52,24 +60,65 @@ bookmark_init <- function(filepath = "bookmarks.sqlite") {
   )
 }
 
-bookmark_mod <- function(input, output, session, instance) {
-  output$saved_sessions <- renderDT({
-    instance$reader() %>%
-      select(link, author, timestamp) %>%
-      datatable(escape = FALSE)
+bookmark_mod <- function(input, output, session, instance, thumbnailFunc) {
+  
+  output$saved_sessions <- renderUI({
+    fluidRow(
+      instance$reader() %>%
+        select(url, label, author, timestamp, thumbnail) %>%
+        rowwise() %>%
+        do(ui = with(., {
+          tags$div(class = "col-md-4",
+            tags$div(class = "thumbnail",
+              if (!is.null(thumbnail) && isTRUE(!is.na(thumbnail))) {
+                tags$a(href = url, tags$img(src = thumbnail))
+              },
+              tags$div(class = "caption",
+                tags$h4(tags$a(href = url, label)),
+                tags$p(
+                  author,
+                  tags$br(),
+                  tags$small(timestamp)
+                )
+              )
+            )
+          )
+        })) %>%
+        pull(ui)
+    )
   })
   
-  shiny::setBookmarkExclude(c("save_name", "save"))
+  shiny::setBookmarkExclude(c("show_save_modal", "show_load_modal", "save_name", "save"))
   
-  observeEvent(input$save, {
+  observeEvent(input$show_load_modal, {
+    showModal(modalDialog(size = "l", title = "Restore session",
+      tags$style(".modal-body { max-height: 600px; overflow-y: scroll; }"),
+      uiOutput(session$ns("saved_sessions"))
+    ))
+  })
+  
+  observeEvent(input$show_save_modal, {
+    showModal(modalDialog(
+      textInput(session$ns("save_name"), "Give this session a name"),
+      footer = tagList(
+        modalButton("Cancel"),
+        actionButton(session$ns("save"), "Save", class = "btn-primary")
+      )
+    ))
+  })
+  
+  observeEvent(input$save, ignoreInit = TRUE, {
     tryCatch(
       {
         if (!isTruthy(input$save_name)) {
           stop("Please specify a bookmark name")
         } else {
+          removeModal()
           session$doBookmark()
+          showNotification(
+            "Session successfully saved"
+          )
         }
-        
       },
       error = function(e) {
         showNotification(
@@ -82,7 +131,18 @@ bookmark_mod <- function(input, output, session, instance) {
   
   function() {
     onBookmarked(function(url) {
+      url <- sub("^[^?]+", "", url, perl = TRUE)
       updateQueryString(url)
+      
+      thumbnail <- if (!is.null(thumbnailFunc)) {
+        pngfile <- shiny::plotPNG(function() {
+          try(thumbnailFunc(), silent = TRUE)
+        }, height = 300)
+        on.exit(unlink(pngfile), add = TRUE)
+        base64enc::dataURI(mime = "image/png", file = pngfile)
+      } else {
+        NA_character_
+      }
       
       df <- data.frame(
         timestamp = Sys.time(),
@@ -92,6 +152,7 @@ bookmark_mod <- function(input, output, session, instance) {
           session$user
         else
           paste("Anonymous @", session$request$REMOTE_ADDR),
+        thumbnail = thumbnail,
         stringsAsFactors = FALSE
       )
       
