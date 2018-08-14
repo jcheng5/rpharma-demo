@@ -2,12 +2,12 @@ library(shiny)
 library(DT)
 library(shinythemes)
 
-source("format.R", local = environment())
-source("utils.R", local = environment())
-source("select_module.R", local = environment())
-source("filter_module.R", local = environment())
-source("bookmark_module.R", local = environment())
-source("summarize_module.R", local = environment())
+source("format.R")
+source("utils.R")
+source("select_module.R")
+source("filter_module.R")
+source("bookmark_module.R")
+source("summarize_module.R")
 
 bmi <- bookmark_init("bookmarks.sqlite")
 
@@ -39,7 +39,13 @@ ui <- function(req) {
           wellPanel(
             filter_ui("filter")
           ),
-          downloadButton("download", "Download report", class = "btn-primary")
+          wellPanel(
+            p(downloadButton("download", "Download report", class = "btn-primary")),
+            tags$details(
+              tags$summary("Code preview"),
+              verbatimTextOutput("code")
+            )
+          )
         ),
         mainPanel(
           tabsetPanel(id = "tabs",
@@ -90,6 +96,10 @@ server <- function(input, output, session) {
   
   output$summary <- renderPrint({
     summary(data())
+  })
+  
+  output$code <- renderText({
+    format_tidy_code(selectExpr())
   })
   
   output$download <- downloadHandler(
