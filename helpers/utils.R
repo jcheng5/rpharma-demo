@@ -38,8 +38,8 @@ expr_pipeline <- function(..., .list = list(...)) {
 }
 
 #' Make a report bundle (.pdf and .rmd)
-make_report_bundle <- function(title, author, description, body_expr, packages, files,
-  output_file = tempfile("bundle", fileext = ".zip")) {
+make_report_bundle <- function(template, title, author, description, body_expr,
+  packages, files, output_file = tempfile("bundle", fileext = ".zip")) {
   
   bundle_dir <- tempfile("report")
   dir.create(bundle_dir)
@@ -49,7 +49,7 @@ make_report_bundle <- function(title, author, description, body_expr, packages, 
   }, USE.NAMES = FALSE)
   setup_chunk <- paste(setup_chunk, collapse = "\n")
   
-  report_source <- knitr::knit_expand("rmd-template.txt",
+  report_source <- knitr::knit_expand(template,
     frontmatter = yaml::as.yaml(list(title = title, author = author)),
     title = title,
     description = description,

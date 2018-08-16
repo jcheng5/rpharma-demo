@@ -39,7 +39,7 @@ bookmark_init <- function(filepath = "bookmarks.sqlite") {
   
   bookmarks <- reactivePoll(1000, NULL,
     function() {
-      file.info("bookmarks.sqlite")$mtime
+      file.info(filepath)$mtime
     },
     function() {
       bookmark_pool %>% tbl("bookmarks") %>%
@@ -156,8 +156,6 @@ bookmark_mod <- function(input, output, session, instance, thumbnailFunc) {
         stringsAsFactors = FALSE
       )
       
-      # db <- dbConnect(SQLite(), "bookmarks.sqlite")
-      # on.exit(dbDisconnect(db), add = TRUE)
       dbWriteTable(instance$pool, "bookmarks", df, append = TRUE)
     })
   }

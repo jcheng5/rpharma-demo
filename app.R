@@ -1,15 +1,16 @@
 library(shiny)
 library(DT)
 library(shinythemes)
+library(dplyr)
 
-source("format.R")
-source("utils.R")
-source("select_module.R")
-source("filter_module.R")
-source("bookmark_module.R")
-source("summarize_module.R")
+source("helpers/format.R")
+source("helpers/utils.R")
+source("modules/select_module.R")
+source("modules/filter_module.R")
+source("modules/bookmark_module.R")
+source("modules/summarize_module.R")
 
-bmi <- bookmark_init("bookmarks.sqlite")
+bmi <- bookmark_init("db/bookmarks.sqlite")
 
 ui <- function(req) {
   tagList(
@@ -42,7 +43,7 @@ ui <- function(req) {
           wellPanel(
             p(downloadButton("download", "Download report", class = "btn-primary")),
             tags$details(
-              tags$summary("Code preview"),
+              tags$summary(style = "outline: none; cursor: pointer;", "Code preview"),
               verbatimTextOutput("code")
             )
           )
@@ -106,7 +107,8 @@ server <- function(input, output, session) {
     filename = "report.zip",
     content = function(file) {
       withProgress(message = "Compiling report...", value = NULL,
-        make_report_bundle(title = "My great report",
+        make_report_bundle("rmd-template.txt",
+          title = "My great report",
           author = "Joe Cheng",
           description = "This is a high quality report!",
           body_expr = expr({
