@@ -54,7 +54,7 @@ make_report_bundle <- function(template, title, author, description, body_expr,
     title = title,
     description = description,
     setup = setup_chunk,
-    code = format_tidy_code(paste(collapse = "\n", deparse_flatten(body_expr)))
+    code = format_tidy_code(deparse_flatten(body_expr))
   )
   
   writeLines(report_source, file.path(bundle_dir, "report.Rmd"))
