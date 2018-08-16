@@ -4,7 +4,6 @@ library(RSQLite)
 library(pool)
 library(dplyr)
 library(lubridate)
-library(shinyIncubator) # devtools::install_github("rstudio/shiny-incubator")
 
 bookmark_modal_save_ui <- function(id) {
   ns <- NS(id)
@@ -91,14 +90,14 @@ bookmark_mod <- function(input, output, session, instance, thumbnailFunc) {
   shiny::setBookmarkExclude(c("show_save_modal", "show_load_modal", "save_name", "save"))
   
   observeEvent(input$show_load_modal, {
-    showModal(modalDialog(size = "l", title = "Restore session",
+    showModal(modalDialog(size = "l", easyClose = TRUE, title = "Restore session",
       tags$style(".modal-body { max-height: 600px; overflow-y: scroll; }"),
       uiOutput(session$ns("saved_sessions"))
     ))
   })
   
   observeEvent(input$show_save_modal, {
-    showModal(modalDialog(
+    showModal(modalDialog(easyClose = TRUE,
       textInput(session$ns("save_name"), "Give this session a name"),
       footer = tagList(
         modalButton("Cancel"),

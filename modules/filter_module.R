@@ -125,7 +125,7 @@ createFilter.numeric <- function(data, id, fieldname) {
 createFilter.integer <- createFilter.numeric
 
 createFilter.factor <- function(data, id, fieldname) {
-  inputControl <- if (levels(data) > 6) {
+  inputControl <- if (length(levels(data)) > 6) {
     selectInput(id, fieldname, levels(data), character(0), multiple = TRUE)
   } else {
     checkboxGroupInput(id, fieldname, levels(data))
