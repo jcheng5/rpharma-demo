@@ -50,7 +50,7 @@ make_report_bundle <- function(template, title, author, description, body_expr,
   setup_chunk <- paste(setup_chunk, collapse = "\n")
   
   report_source <- knitr::knit_expand(template,
-    frontmatter = yaml::as.yaml(list(title = title, author = author)),
+    frontmatter = paste(collapse = "\n", strsplit(yaml::as.yaml(list(title = title, author = author)), "\n")[[1]]),
     title = title,
     description = description,
     setup = setup_chunk,
